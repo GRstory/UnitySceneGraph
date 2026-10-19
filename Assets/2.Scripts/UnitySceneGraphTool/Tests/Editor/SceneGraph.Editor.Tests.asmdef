@@ -1,0 +1,25 @@
+{
+    "name": "SceneGraph.Editor.Tests",
+    "rootNamespace": "SceneGraph.Editor.Tests",
+    "references": [
+        "SceneGraph.Runtime",
+        "SceneGraph.Editor",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

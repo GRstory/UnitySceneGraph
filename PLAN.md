@@ -78,7 +78,7 @@
 #### 그룹 만드는 규칙
 파츠마다 씬 루트까지 조상을 훑는다. 처음 걸리는 데서 멈추지 않는다. 신호가 있는 조상은 전부 그룹이 되고, 가까운 그룹이 먼 그룹의 자식이 된다.
 
-1. **SemanticTag 수동 지정. 절대 우선.** 조상 중 `isGroupRoot`가 켜진 게 있으면 가장 가까운 그것이 그룹이고, 그 아래 신호는 전부 무시한다. 그 위로는 규칙 2가 계속된다. isGroupRoot 책상이 Room 프리팹 안에 있으면 Room 그룹은 생긴다. `splitChildren`이 켜진 오브젝트는 규칙 2의 신호로 치지 않고, 규칙 3 휴리스틱이 올라올 때 스톱리스트처럼 그 직전에서 멈춘다. 아래 규칙이 틀릴 때 쓰는 탈출구.
+1. **SemanticTag 수동 지정. 절대 우선.** 조상 중 `GroupRoot`가 켜진 게 있으면 가장 가까운 그것이 그룹이고, 그 아래 신호는 전부 무시한다. 그 위로는 규칙 2가 계속된다. GroupRoot 책상이 Room 프리팹 안에 있으면 Room 그룹은 생긴다. `SplitChildren`이 켜진 오브젝트는 규칙 2의 신호로 치지 않고, 규칙 3 휴리스틱이 올라올 때 스톱리스트처럼 그 직전에서 멈춘다. 아래 규칙이 틀릴 때 쓰는 탈출구.
 2. **신호 조상 전부.** 올라가면서 아래 네 가지 중 하나라도 있는 조상을 모두 그룹 노드로 만든다. 같은 오브젝트에 신호가 여럿이면(프리팹 루트 + Animator) 그룹 하나다.
    - LODGroup. LOD0 렌더러만 파츠로 남기고 LOD1 이상은 버린다. bounds도 LOD0 기준.
    - Regular 또는 Variant 프리팹 인스턴스 루트. `PrefabUtility.GetPrefabAssetType`이 Model이면 신호가 아니다. FBX는 "한 파일에서 왔다"는 뜻일 뿐 "한 물체"라는 뜻이 아니다. 부품 FBX를 빈 오브젝트 밑에 모아 만든 책상이 5개로 쪼개지는 걸 막는다.
@@ -87,7 +87,7 @@
 3. **휴리스틱 올라가기.** 파츠에서 부모로 한 단계씩 올라간다. 가장 가까운 신호 그룹 바로 아래까지만 간다. 신호 그룹이 없으면 씬 루트까지. 아래 세 조건을 다 만족하면 계속, 하나라도 깨지면 직전에서 멈춘다. 그룹은 하나만 만든다.
    - 부모 서브트리의 렌더러 수 ≤ maxParts (기본 24)
    - 부모 서브트리 bounds 대각선 ≤ maxDiagonal (기본 4m, 2D는 뷰포트 비율)
-   - 부모 이름이 스톱리스트에 없고 splitChildren도 아님 (기본 스톱리스트: Environment, Props, Geometry, Furniture, Group, `---`, `[`로 시작)
+   - 부모 이름이 스톱리스트에 없고 SplitChildren도 아님 (기본 스톱리스트: Environment, Props, Geometry, Furniture, Group, `---`, `[`로 시작)
 
    멈춘 자리가 다음 둘 중 하나면 중복이라 그룹을 만들지 않는다.
    - 파츠가 하나뿐이다. 본 뼈대 밑에 혼자 달린 무기처럼.
@@ -103,7 +103,7 @@
 
 #### bounds
 - 그룹 bounds = 서브트리 렌더러 전체의 `Renderer.bounds`(월드 AABB) 합집합. 소속 파츠와 자식 그룹을 다 넣는다. 직접 파츠가 없는 그룹도 bounds가 비지 않는다.
-- **관계 판정 때 조상 제외.** `on(사과, 책상)`을 검사할 때 사과가 책상 서브트리 안에 있으면(상판에 자식으로 붙여 두는 일이 흔하다) 책상 bounds를 사과 서브트리만 뺀 채로 다시 계산한다. 다른 자식 그룹은 그대로 둔다. 이게 없으면 사과는 항상 책상 "inside"가 된다.
+- **관계 판정 때 조상 제외.** `inside(사과, 책상)`을 검사할 때 사과가 책상 서브트리 안에 있으면(상판에 자식으로 붙여 두는 일이 흔하다) 책상 bounds를 사과 서브트리만 뺀 채로 다시 계산한다. 다른 자식 그룹은 그대로 둔다. 이게 없으면 사과는 항상 책상 "inside"가 된다. 적용 범위는 under, inside, near. on, above, below는 4.1의 파츠 단위 판정을 쓰므로 조상 제외가 필요 없다.
 - 스킨드 메시는 `SkinnedMeshRenderer.bounds` 그대로. 포즈마다 바뀌지만 라이브 값이라 상관없다.
 
 #### 예시
@@ -112,15 +112,15 @@
 | Desk 프리팹(Regular) 안에 Apple 프리팹(Regular) 중첩 | 둘 다 신호. Desk 그룹 {Top, Leg×4}, 그 자식으로 Apple 그룹 {Body, Stem}. Desk bounds에서 Apple 제외. on 성립 |
 | Desk.prefab = 빈 루트 + DeskTop.prefab + Leg.prefab×4 (전부 Regular) | 경로의 신호 조상 전부가 그룹. DeskTop, Leg 그룹 5개가 Desk 그룹의 자식. Desk는 직접 파츠가 없어도 그룹이 된다 |
 | 빈 오브젝트 Desk 밑에 SM_DeskTop.fbx, SM_DeskLeg.fbx×4 (Model) | Model은 신호 아님. 신호 없으니 휴리스틱. Desk까지 올라가고 Furniture(스톱리스트)에서 멈춤. Desk 그룹 하나. 썸네일도 책상 전체 |
-| Room/Furniture/Desk/{Top, Leg×4, Apple} 전부 플레인 메시 | 휴리스틱. Desk 서브트리 6개, 작음 → 계속. Furniture 스톱리스트 → Desk 그룹. Apple은 Desk 그룹 안의 파츠. "apple"은 파츠에, "desk"는 그룹에 걸리고 조상 제외 bounds로 on 성립 |
+| Room/Furniture/Desk/{Top, Leg×4, Apple} 전부 플레인 메시 | 휴리스틱. Desk 서브트리 6개, 작음 → 계속. Furniture 스톱리스트 → Desk 그룹. Apple은 Desk 그룹 안의 파츠. "apple"은 파츠에, "desk"는 그룹에 걸리고 Top 파츠 받침면으로 on 성립 |
 | Cat.prefab(Regular, 루트에 Animator) 안에 CatBody.fbx, Collar.fbx(Model) | Model은 무시. Cat 루트가 프리팹이자 Animator라 그룹 하나. 몸과 목걸이가 한 고양이 |
-| Shelf.prefab(Regular) 안에 Rigidbody 달린 플레인 메시 책들 | Book 그룹(Rigidbody)들이 Shelf 그룹(프리팹)의 자식. "선반 위의 빨간 책" 성립 |
-| Shelf.prefab(Regular) 안에 Rigidbody 없는 플레인 메시 Book_01/{Body, Cover} | 휴리스틱이 Shelf 바로 아래까지 올라가 Book_01 그룹을 만든다. Shelf 그룹의 자식. 성립 |
+| Shelf.prefab(Regular) 안에 Rigidbody 달린 플레인 메시 책들 | Book 그룹(Rigidbody)들이 Shelf 그룹(프리팹)의 자식. "선반 위의 빨간 책" 성립. on은 Shelf 서브트리의 판자 파츠가 책을 받치는 걸로 판정한다 |
+| Shelf.prefab(Regular) 안에 Rigidbody 없는 플레인 메시 Book_01/{Body, Cover} | 휴리스틱이 Shelf 바로 아래까지 올라가 Book_01 그룹을 만든다. Shelf 그룹의 자식. on은 판자 파츠 받침면으로 성립 |
 | Cat.prefab 안 Armature/…/Hand/Sword 메시 하나 | 휴리스틱이 Armature까지 올라가지만 파츠가 하나라 그룹 안 만듦. Sword는 Cat 그룹의 파츠 |
 | Desk.prefab/Mesh/{Top, Leg×4}, Mesh는 빈 홀더 | 휴리스틱이 Mesh에서 멈추지만 서브트리 렌더러 집합이 Desk 그룹과 같아 그룹 안 만듦 |
 | 방 전체 프리팹, 렌더러 300개 | maxParts 초과 → 그룹 지우고 직접 자식마다 규칙 재적용 |
-| 책상 프리팹 루트에 SemanticTag isGroupRoot, 다리에 Rigidbody | 수동 지정이 절대 우선. 다리 그룹 안 생김. 책상 하나 |
-| 큐브 하나를 상자로 쓰는데 책상 프리팹 안에 넣어 둠 | 큐브는 책상 그룹의 파츠. 상자로 따로 찾으려면 큐브에 SemanticTag isGroupRoot + overrideNouns |
+| 책상 프리팹 루트에 SemanticTag GroupRoot, 다리에 Rigidbody | 수동 지정이 절대 우선. 다리 그룹 안 생김. 책상 하나 |
+| 큐브 하나를 상자로 쓰는데 책상 프리팹 안에 넣어 둠 | 큐브는 책상 그룹의 파츠. 상자로 따로 찾으려면 큐브에 SemanticTag GroupRoot + OverridesNameTokens |
 
 규칙 3의 임계값 셋과 스톱리스트는 프로젝트 설정으로 뺀다. 윈도우에서 트리를 그대로 보여 줘서 묶음이 어떻게 됐는지 바로 확인할 수 있게 한다. M0 검증의 핵심.
 
@@ -155,11 +155,11 @@ labeledAt, modelVersion
 ### 3.4 SemanticTag (MonoBehaviour, 선택)
 렌더러 오브젝트에 붙이는 컴포넌트. 규칙이 틀릴 때 손으로 고치는 용도.
 ```
-overrideNouns     : string[]   같은 큐브를 "상자"/"책상"으로 다르게 쓸 때
-excludeFromSearch : bool
-isGroupRoot       : bool       여기가 그룹이다. 아래쪽 신호(Rigidbody 등)는 무시한다. 위쪽 신호는 그대로. 절대 우선
-splitChildren     : bool       이 오브젝트는 신호로 안 친다. 휴리스틱도 여기서 멈춰 자식들이 따로 묶인다
-cachedFingerprint : Hash128    디버그용
+OverridesNameTokens   : string[]   같은 큐브를 "상자"/"책상"으로 다르게 쓸 때
+ExcludeFromSearch     : bool
+GroupRoot             : bool       여기가 그룹이다. 아래쪽 신호(Rigidbody 등)는 무시한다. 위쪽 신호는 그대로. 절대 우선
+SplitChildren         : bool       이 오브젝트는 신호로 안 친다. 휴리스틱도 여기서 멈춰 자식들이 따로 묶인다
+CachedFingerprintHash : Hash128    디버그용
 ```
 - 기본은 자동으로 안 붙인다. 씬과 프리팹이 dirty가 되면 팀 작업에 방해된다. 설정에서 켜면 자동 부착.
 - 빌드 때 `IProcessSceneWithReport`에서 뗀다.
@@ -184,10 +184,11 @@ cachedFingerprint : Hash128    디버그용
   - 축 무관: `on | under | inside | contains | near | above | below`
   - 축 의존: `left_of | right_of | in_front_of | behind`
 - `contains`는 target이 object를 포함한다는 뜻. inside의 역방향. 다른 relation은 전부 "target이 object에 대해 어디 있나"라서 "이파리 있는 사과"를 target=leaf, inside apple로 쓰면 이파리가 선택된다. 대신 target apple, relations `[{ "type": "contains", "object": { "nouns": ["leaf"] } }]`로 쓴다.
-- `frame`은 축 의존 관계의 기준. 없으면 프로젝트 설정 기본값(월드, forward +z, up +y).
-  - `{ "type": "world", "forward": "+z"|"-z"|"+x"|"-x", "up": "+y"|"+z" }`
-  - `{ "type": "sceneCamera" }` 씬 뷰 카메라의 forward/right/up
-  - `{ "type": "object", "object": { "nouns": ["sofa"] } }` 그 오브젝트 transform의 축. "소파 앞에 있는" 용
+- `frame`은 축 의존 관계(left_of, right_of, in_front_of, behind)의 기준. 모드 열거형 `EFrameMode: Camera | World | Object`.
+  - `{ "type": "camera" }` 씬 뷰 카메라의 right/forward/up. 사용자가 화면에서 보는 좌우앞뒤. 씬 뷰가 없으면 World로 처리한다.
+  - `{ "type": "world", "forward": "+z"|"-z"|"+x"|"-x", "up": "+y"|"+z" }` 월드 축 고정. forward/up 생략 시 +z/+y.
+  - `{ "type": "object", "object": { "nouns": ["sofa"] } }` 그 오브젝트 transform의 축. "소파 앞에 있는" 용.
+  - frame을 생략하면 camera다. 테스트와 창의 JSON 입력은 결정성을 위해 world를 명시한다.
 - 명사는 영어 소문자. 한국어를 영어 동의어로 펴는 건 LLM이 한다.
 
 **응답**
@@ -230,13 +231,22 @@ cachedFingerprint : Hash128    디버그용
 | EditorHttpServer | Editor/Bridge | `HttpListener` localhost, 메인 스레드로 넘기기 |
 | mcp-server | Tools/mcp-server | Node stdio MCP 서버. HTTP로 Unity에 전달 |
 
-### 4.1 공간 관계 (A = target, B = object, 둘 다 bounds)
-tol = 0.1 × min(A.size.y, B.size.y). 설정 가능.
-- **on**: |A.min.y − B.max.y| ≤ tol, XZ 발자국 겹침 ≥ 0.5 (A 기준)
-- **under**: A.max.y ≤ B.max.y, A.center가 B의 XZ 발자국 안, A.center.y < B.center.y
+### 4.1 공간 관계 (A = target, B = object)
+tol = 0.1 × min(A.size.y, B.size.y). 설정 가능. 절대 하한은 미결. size.y = 0인 평면은 tol이 0이 되니 구현에서 epsilon(1e-4)으로 방어한다.
+
+관계는 두 부류다. **받침면 관계**(on, above, below)는 B의 그룹 상자가 아니라 B 서브트리의 파츠 상자들을 하나씩 본다. **상자 관계**(under, inside, near, contains)는 그룹 상자 그대로 본다.
+
+**받침면 관계.** p는 B 서브트리의 파츠. A 서브트리에 속한 파츠는 p 후보에서 뺀다. B가 파츠면 p = B 자신. p 중 하나라도 조건을 만족하면 성립.
+- **on**: −0.5 × A.size.y ≤ A.min.y − p.max.y ≤ tol, FootprintOverlap(A, p) ≥ 0.5 (A 기준). 위로 뜨는 건 tol까지, 아래로 박히는 건 A 높이의 50%까지 허용한다. 사과가 상판에 절반 박혀 있어도 on이다. 그 이상 박히면 inside 쪽.
+- **above**: FootprintOverlap(A, p) > 0, A.min.y − p.max.y > tol. 접촉 없음.
+- **below**: 대칭. FootprintOverlap(A, p) > 0, p.min.y − A.max.y > tol.
+
+파츠 단위로 보는 이유: 책상 그룹이 사과와 헤드셋을 파츠로 흡수한 경우, 사과 하나만 빼도 형제 소품이 그룹 상자의 윗면을 올려서 상자로는 판정이 안 된다. 상판 파츠가 받치고 있다는 사실은 그룹 구성과 무관하다. 다리 4개짜리 책상처럼 "desk"가 그룹뿐인 경우에도 되고, 선반 안의 책도 판자 파츠에서 성립한다. 조상 제외는 받침면 관계에서는 "A 서브트리 파츠를 p 후보에서 뺀다"로 대체된다.
+
+**상자 관계.** 기존 조상 제외(A가 B 서브트리 안이면 B 상자에서 A 서브트리를 뺀다) 유지.
+- **under**: A.max.y ≤ B.max.y, A.center가 B의 XZ 발자국 안, A.center.y < B.center.y. 겹침을 원래 허용하므로 박힘 조항이 필요 없다.
 - **inside**: B가 A를 ≥ 0.8 포함
 - **contains**: B가 A의 서브트리 안(자식 그룹 또는 소속 파츠)이거나, A가 B를 ≥ 0.8 포함. 둘 중 하나면 성립. 계층 조건을 먼저 보고 bounds는 보조. 조상 제외는 적용하지 않는다. target bounds에서 object를 빼면 안 되기 때문
-- **above / below**: XZ 겹침, y 차이 > tol. 접촉 없음
 - **near**: 중심 거리 ≤ max(A, B 대각선) × 1.5
 - 2D: SpriteRenderer bounds로 같은 함수. `under`/`inside`는 sortingOrder도 본다.
 
@@ -246,24 +256,24 @@ tol = 0.1 × min(A.size.y, B.size.y). 설정 가능.
 - **right_of**: dr > tol, |dr|이 최대
 - **in_front_of**: df > tol, |df|가 최대
 - **behind**: df < −tol, |df|가 최대
-- 2D는 frame을 `{ "type": "world", "forward": "+y", "up": "+z" }`로 두면 화면 좌/우/위/아래가 그대로 맞는다.
+- 2D는 world 기본 축(forward +z, up +y)이면 화면 좌/우/위/아래가 그대로 맞는다.
 
 ### 4.2 점수
 ```
 nounScore  = max( 이름 토큰 정확 일치 1.0, 라벨 confidence, 임베딩 유사도 )
-colorScore = 요청한 색의 비율 합. 요청 없으면 1.0
+colorScore = 요청한 색의 비율 합. 요청 없으면 1.0. minColorRatio(기본 0.2) 미만이면 탈락
 relScore   = relation마다 object 후보 중 최고 점수를 곱한 것
 total      = nounScore × colorScore × relScore
 ```
 contains도 다른 relation과 같다. object 후보 중 최고 점수를 곱한다. 별도 규칙 없음.
-nounScore < 0.3이면 탈락. 부모와 자식이 같은 명사로 걸리면 부모만 남긴다. 상위 limit개 반환.
+nounScore < 0.3이면 탈락. colorScore 하한은 빨강 6%짜리 책상이 colors:[red]에 걸리는 걸 막는다. 부모와 자식이 같은 명사로 걸리면 부모만 남긴다. 상위 limit개 반환.
 
 ### 4.3 MCP 툴
 - `scene_query(query)` → 결과 목록
 - `scene_select(globalObjectIds[])` → Selection 설정 + ping
 - `scene_describe(globalObjectId)` → 이름, 경로, bounds, 라벨, 색, 머티리얼
 - `scene_index_status()` → 총 개수, 대기 중 라벨, 마지막 갱신
-- 툴 설명에 쿼리 스키마, frame 기본값, "한국어 명사는 영어 동의어로 펴라", "포함 관계('~가 있는', '~가 달린')는 contains"를 적는다.
+- 툴 설명에 쿼리 스키마, "frame 생략 시 씬 뷰 카메라 기준. 특정 물체 기준의 앞뒤면 object frame", "한국어 명사는 영어 동의어로 펴라", "포함 관계('~가 있는', '~가 달린')는 contains"를 적는다.
 
 ---
 
@@ -276,10 +286,10 @@ nounScore < 0.3이면 탈락. 부모와 자식이 같은 명사로 걸리면 부
 
 ### M1. 쿼리 엔진 (ML 없음)
 - `QueryEngine`, `SpatialRelations`, `ThumbnailRenderer` 1장 버전, `ColorExtractor`
-- `frame` 해석(world / sceneCamera / object), 축 의존 관계 4종
+- `frame` 해석(camera / world / object), 축 의존 관계 4종
 - 윈도우에서 JSON 입력 → 결과 선택/ping
 - EditMode 테스트: 관계 11종, frame 변환, 점수, 조상 제외 bounds
-- **검증**: `{"nouns":["apple"],"colors":["red"],"relations":[{"type":"on","object":{"nouns":["desk"]}}]}`가 빨간 사과 하나만 고른다.
+- **검증**: `{"nouns":["apple"],"colors":["red"],"relations":[{"type":"on","object":{"nouns":["desk"]}}]}`가 책상 위 빨간 사과 두 개를 모두 내고 다른 노드는 내지 않는다. SampleScene은 빨간 사과 둘이 다 책상 위에 있고 하나는 상판에 1cm 박혀 있다. 박힘 50% 허용으로 둘 다 통과하는 게 맞다. on은 상판 파츠 받침면으로 성립한다. "하나만 고른다" 검증은 아래 contains 쿼리가 맡는다.
 - **검증**: Apple/{Body, Leaf}와 Apple/{Body} 두 사과가 있을 때 `{"target":{"nouns":["apple"]},"relations":[{"type":"contains","object":{"nouns":["leaf"]}}]}`가 이파리 있는 사과 하나만 고른다.
 
 ### M2. 미리 만들기와 무효화
@@ -300,7 +310,7 @@ nounScore < 0.3이면 탈락. 부모와 자식이 같은 명사로 걸리면 부
 - **검증**: Claude Code에서 "책상 위에 있는 빨간 사과 찾아줘"라고 하면 하이어라키에서 그 오브젝트가 선택된다.
 
 ### M5. 마무리
-- 2D 스프라이트, 빌드 때 `SemanticTag` 제거, 설정(톨러런스, 묶기 임계값, 스톱리스트, 모델 경로, 자동 부착)
+- 2D 스프라이트, 빌드 때 `SemanticTag` 제거, 설정(톨러런스, minColorRatio, defaultFrameMode(기본 Camera), defaultFrameForward/Up(World 모드일 때의 축), 묶기 임계값, 스톱리스트, 모델 경로, 자동 부착)
 - 결과 하이어라키 하이라이트, 어휘 확장 방법, README
 
 ---
@@ -313,12 +323,13 @@ nounScore < 0.3이면 탈락. 부모와 자식이 같은 명사로 걸리면 부
 | 위치 정보 | 저장 안 함 | 옮겨도 안 깨진다. 스캔은 ms 단위 |
 | 무효화 | 이벤트는 트리거, 정합성은 해시 | 이벤트를 놓쳐도(에디터 꺼진 채 git pull) 해시 비교로 잡힌다 |
 | 묶기 | 경로 위 신호 조상 전부를 그룹으로, 각 신호 그룹 안에서는 휴리스틱으로 하위 묶음 | Model 프리팹은 신호에서 뺀다. 플레인 메시 씬은 틀릴 수 있다. 파츠를 살려 두고 SemanticTag로 고친다 |
+| 그룹 흡수 | 휴리스틱 그룹은 자식 소품을 파츠로 흡수한다(책상 안의 사과) | 검색은 파츠로 되고 on은 파츠 단위라 영향 없음. 분리하려면 Rigidbody, Regular 프리팹, SemanticTag GroupRoot. 플레인 메시 여러 개로 된 소품(Body+Leaf)이 흡수되면 래퍼 이름이 토큰에 안 들어가 검색이 안 될 수 있다. M3 라벨로 보정 검토 |
 | 모델 | CLIP 계열, Inference Engine으로 에디터 안에서 실행 | 임베딩으로 상위어 검색이 공짜. 모델 파일(~150MB)은 Git LFS 또는 다운로드 스크립트 |
 | 어휘 | 영어 명사 수천 개 + 임베딩 사전 계산 | 한국어는 LLM이 번역. 어휘에 없는 명사는 이름 토큰에 기댄다 |
 | 썸네일 | PreviewRenderUtility. 1차 1장, M3에서 다각도 | 스킨드 메시, 거대 오브젝트, 투명 재질은 라벨 품질이 떨어질 수 있다 |
 | 컴포넌트 | 기본 미부착 | 자동 부착은 씬/프리팹을 dirty로 만든다 |
 | CLI | 안 쓴다 | batchmode는 호출마다 수십 초, 열린 에디터와 같이 못 쓴다 |
-| 축 의존 관계 | `frame` 옵션 | 기본 월드 축. 씬 카메라/오브젝트 프레임은 명시할 때만. LLM이 "앞"을 어느 프레임으로 볼지 헷갈릴 수 있어 툴 설명에 기본값을 적는다 |
+| 축 의존 관계 | `frame` 옵션 | EFrameMode Camera/World/Object. 생략 시 Camera, 씬 뷰 없으면 World. LLM이 "앞"을 어느 프레임으로 볼지 헷갈릴 수 있어 툴 설명에 규칙을 적는다 |
 
 ---
 
